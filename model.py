@@ -70,6 +70,7 @@ class CrossRoad(Model):
     def __init__(self, num_agents=10, half_length=20, traffic_time=10, car_turning_rate=0.1):
         self.num_agents = num_agents
         self.running = True
+        self.pass_ = 1
 
         # Dimensions are double of given values
         self.centre_bounds = (half_length - 1, half_length + 1)
@@ -93,18 +94,45 @@ class CrossRoad(Model):
         }
         #traffic_light_positions: {'right': (22, 22), 'left': (18, 18), 'up': (18, 22), 'down': (22, 18)}
 
-        # Possible turns and centre for crossroad
-        self.centre = [(half_length + x, half_length + y) for x in [-1, 1] for y in [-1, 1]]
-        # centre is an array of tupples: [(19, 19), (19, 21), (21, 19), (21, 21)]
+        self.newStreets = []
 
+        for i in range (9):
+            self.newStreets.append((i,19))
+            self.newStreets.append((i,20))
+            self.newStreets.append((i,21))
+        
+        print("new streets: ")
+        
+        print(self.newStreets)
+
+        #new set of traffic lights positions:
+        new_traffic_light_positions = {
+            'down': (8, 18),
+            'right': (11, 18)
+        }
+
+
+        #cremos calle para retorno
+        self.retorno = []
+
+        for i in range (7):
+            self.retorno.append((15,22+i))
+
+
+        # Possible turns and centre for crossroad
+        # centre is an array of tupples: [(19, 19), (19, 21), (21, 19), (21, 21)]
+        self.centre = [(half_length + x, half_length + y) for x in [-1, 1] for y in [-1, 1]]
+        
         self.possible_turns = {
-            'right': {self.centre[2]: 'down', self.centre[3]: 'up'},
-            'left': {self.centre[1]: 'up', self.centre[0]: 'down'},
-            'up': {self.centre[3]: 'up', self.centre[1]: 'left'},
-            'down': {self.centre[0]: 'left', self.centre[2]: 'right'}
+            'right': {(21, 19): 'down'},
+            'left': {(19, 21): 'up', (19, 19): 'down'},
+            'up': {self.centre[3]: 'right', self.centre[1]: 'left'},
+            'down': {self.centre[0]: 'left', self.centre[2]: 'right', (19, 21): 'left', (21,21): 'right'}
         }
         
-        # possibble turns is: {'right': {(21, 19): 'down', (21, 21): 'up'}, 'left': {(19, 21): 'up', (19, 19): 'down'}, 'up': {(21, 21): 'right', (19, 21): 'left'}, 'down': {(19, 19): 'left', (21, 19): 'right'}}
+        # possibble turns is: 
+        # {'right': {(21, 19): 'down', (21, 21): 'up'}, 'left': {(19, 21): 'up', (19, 19): 'down'}, 
+        # 'up': {(21, 21): 'right', (19, 21): 'left'}, 'down': {(19, 19): 'left', (21, 19): 'right'}}
 
        
 
@@ -112,13 +140,21 @@ class CrossRoad(Model):
         streets = {
             'left': [(half_length - 1, y) for y in range(self.height)
                      if y not in no_car_zone],
-            'right': [(half_length + 1, y) for y in range(self.height-17)
+            'right': [(half_length + 1, y) for y in range(self.height)
                       if y not in no_car_zone],
             'up': [(x, half_length + 1) for x in range(self.width)
                    if x not in no_car_zone],
-            'down': [(x, half_length - 1) for x in range(self.width)
+            'down': [(x, half_length - 1) for x in range(self.width-18)
                      if x not in no_car_zone]
         }
+        streets['left']=streets['left']
+        streets['down'] = streets['down'] + streets['up'][0:19]
+
+        #para evitar que se aparezcan coches en el rango 0:18 hacia up y cambiar el sentidopara que vayan down los carriles
+        streets['up'] = streets['up'][18:39]
+
+        #(22,21) conflictive position must remove
+        streets['up'].remove((22,21))
        #streets:
         """
         {'left': [(19, 0), (19, 1), (19, 2), (19, 3), (19, 4), (19, 5), (19, 6), (19, 7), (19, 8), (19, 9), (19, 10), (19, 11), (19, 12), (19, 13), (19, 14), (19, 15), (19, 16), (19, 17), (19, 22), (19, 23), (19, 24), (19, 25), (19, 26), (19, 27), (19, 28), (19, 29), (19, 30), (19, 31), (19, 32), (19, 33), (19, 34), (19, 35), (19, 36), (19, 37), (19, 38), (19, 39)], 
@@ -127,24 +163,85 @@ class CrossRoad(Model):
         'down': [(0, 19), (1, 19), (2, 19), (3, 19), (4, 19), (5, 19), (6, 19), (7, 19), (8, 19), (9, 19), (10, 19), (11, 19), (12, 19), (13, 19), (14, 19), (15, 19), (16, 19), (17, 19), (22, 19), (23, 19), (24, 19), (25, 19), (26, 19), (27, 19), (28, 19), (29, 19), (30, 19), (31, 19), (32, 19), (33, 19), (34, 19), (35, 19), (36, 19), (37, 19), (38, 19), (39, 19)]}
         """
 
-        print(streets['right'])
-        
+        #print(streets)
 
+        carrilMiddle = []
+
+        for i in range(16):
+            carrilMiddle.append((i,20))
+
+        #agregamos carril de en medio
+        streets['down'] = streets['down'] + carrilMiddle
+
+        #anadimos una calle para los que van down añadimos de (0,30) a (18,30)
+        #y el segundo carrril a (0,31) a (18,31)
+        #creamos el vector
+        newDownStreets1 = []
+        newDownStreets2 = []
+        newDownStreets3 = []
+        for i in range(19):
+            newDownStreets1.append((i,30))
+            newDownStreets2.append((i,31))
+            newDownStreets3.append((i,29))
+
+        #we add the new array of tuples to the main down one on streets
+
+        streets['up'] = streets['up'] + newDownStreets1 + newDownStreets2 + newDownStreets3
+       
+
+        
+        #ahora añadimos un carril right y left en el primer cuadrante
+        
+        newLeftStreets = []
+        newRightStreets = []
+        for i in range(19):
+            newLeftStreets.append((9,i))
+            newRightStreets.append((10,i))
+            
+        
+        print(newLeftStreets)
+        print(newRightStreets)
+
+        #añadimos a ambas streets
+
+        streets['left'] = streets['left'] + newLeftStreets
+        streets['right'] = streets['right'] + newRightStreets
+       
+
+        
         traffic_light_count = 100
         self.traffic_lights = {}
         # Create traffic light agents 
         #position the traffic light agents
         #assigns the col green to the first traffic light to initialize it
+        #self.trafficlights = {'right': <agents.TrafficLight object at 0x1119dfa90>, 'left': <agents.TrafficLight object at 0x1119dfb10>, 'up': <agents.TrafficLight object at 0x1119dced0>, 'down': <agents.TrafficLight object at 0x1119dfad0>}
+        #create a traffic light and assign it to one direction (right, up etc..) and the placed it into the grid
         for direction, pos in traffic_light_positions.items():
             col = 'green' if traffic_light_count == 100 else 'red'
             a = TrafficLight(traffic_light_count, col, self)
-
             self.traffic_lights[direction] = a
             traffic_light_count += 1
             self.grid.place_agent(a, pos)
+        
+        #new set of traffic lights positioned
+        self.traffic_lights_set1 = {}
+        for direction, pos in new_traffic_light_positions.items():
+            col = 'green' if traffic_light_count == 104 else 'red'
+            a = TrafficLight(traffic_light_count, col, self)
+            self.traffic_lights_set1[direction] = a
+            traffic_light_count += 1
+            self.grid.place_agent(a, pos)
+        
+        a = TrafficLight(traffic_light_count, col, self)
+        self.traffiic_light9=a
+        traffic_light_count += 1
+        self.grid.place_agent(a, (18,32))
 
-        #self.trafficlights = {'right': <agents.TrafficLight object at 0x1119dfa90>, 'left': <agents.TrafficLight object at 0x1119dfb10>, 'up': <agents.TrafficLight object at 0x1119dced0>, 'down': <agents.TrafficLight object at 0x1119dfad0>}
-        #create a traffic light and assign it to one direction (right, up etc..) and the placed it into the grid
+        b = TrafficLight(traffic_light_count, col, self)
+        self.traffiic_light7=b
+        traffic_light_count += 1
+        self.grid.place_agent(b, (22,28))
+
         
 
         field_count = 1000
@@ -152,18 +249,25 @@ class CrossRoad(Model):
             _, x, y = cell
             # Create field agents
             if np.abs(x - half_length) > 1 and np.abs(y - half_length) > 1 and self.grid.is_cell_empty((x, y)):
-                a = Field(field_count, self)
-                self.schedule.add(a)
-                field_count += 1
-                self.grid.place_agent(a, (x, y))
+                if not (x,y) in streets['up'] and not (x,y) in streets['left'] and not (x,y) in streets['right'] and (x,y) != (8,18) and (x,y) != (11,18) and not (x,y) in self.retorno and (x,y) != (18,32) and (x,y) != (22,28):
+                    a = Field(field_count, self)
+                    self.schedule.add(a)
+                    field_count += 1
+                    self.grid.place_agent(a, (x, y))
+                
         
         #create field for right down line
-        for i in range (24-39):
+        #for i in range (24-39):
+        for i in range(18):
             a = Field(field_count, self)
             self.schedule.add(a)
             field_count += 1
-            self.grid.place_agent(a, (21, i))
+            self.grid.place_agent(a, (22+i, 19))
 
+            b = Field(field_count, self)
+            self.schedule.add(b)
+            field_count += 1
+            self.grid.place_agent(b, (22+i, 20))
 
         # Create Car agents
         #just creates an array of random choices of the colours and directions for car agents
@@ -182,6 +286,8 @@ class CrossRoad(Model):
             streets[direction].remove(position)
 
             self.grid.place_agent(a, position)
+        print("place new cars succesfull")
+            
 
         self.datacollector = DataCollector(
             model_reporters={"Grid": get_grid, "Waiting": get_waiting, "Running": get_running}
@@ -197,12 +303,44 @@ class CrossRoad(Model):
         if self.traffic_counter < self.traffic_time:
             self.traffic_counter += 1
         else:
+            #recorre [(0, 'right'), (1, 'down'), (2, 'left'), (3, 'up')] hasta encontrar el que esta en verde
             for i, direction in enumerate(Car.DIRECTIONS):
                 # print(self.traffic_lights)
                 if self.traffic_lights[direction].colour == 'green':
+                    #reinicia el counter
                     self.traffic_counter = 0
+
+                    #cambia el que esta en verde a rojo
                     self.traffic_lights[direction].colour = 'red'
 
+                    #aqui asigna en verde al siguiente semaforo en la lista
+                    #en caso de que este sea el ultimo (3) este se reinicia
+                    #y el verde sera el 0
                     next_i = i + 1 if i < len(Car.DIRECTIONS) - 1 else 0
                     self.traffic_lights[Car.DIRECTIONS[next_i]].colour = 'green'
+                    if Car.DIRECTIONS[next_i] == 'left':
+                        self.traffiic_light9.colour = 'green'
+                        self.traffiic_light7.colour = 'red'
+                    else:
+                        self.traffiic_light9.colour = 'red'
+                        self.traffiic_light7.colour = 'green'
+                    
+                    if Car.DIRECTIONS[next_i] == 'down':
+                        self.traffic_lights_set1['down'].colour = 'green'
+                        self.traffic_lights_set1['right'].colour = 'red'
+                    else:
+                        self.traffic_lights_set1['down'].colour = 'red'
+                        self.traffic_lights_set1['right'].colour = 'green'
                     break
+
+
+            """ for i, direction in [(0, 'down'), (1, 'right')]:
+                if self.traffic_lights_set1[direction].colour == 'green':
+                    self.traffic_lights_set1[direction].colour = 'red'
+                    next_i = i + 1 if i < 2 - 1 else 0
+                    self.traffic_lights_set1[Car.DIRECTIONS_SET1[next_i]].colour = 'green'
+                    break """
+        
+        
+        #nuevo sistema de semaforos para el primer cuadrante
+
