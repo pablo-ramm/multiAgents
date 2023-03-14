@@ -92,5 +92,6 @@ server = ModularServer(model_cls=CrossRoad,
                        visualization_elements=[canvas_element, chart_element],
                        name="Cross Road", model_params=model_params
                        )
+print("json model: ")
 server.max_steps = MAX_ITERATIONS
 server.launch()

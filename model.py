@@ -8,6 +8,12 @@ from agents import Car, TrafficLight, Field
 import numpy as np
 import random
 
+def openFile():
+    f = open('in.txt', 'w')
+    return f
+
+def writeFile(f, data):
+    f.write(data)
 
 def get_grid(model):
     grid = np.zeros((model.grid.width, model.grid.height))
@@ -299,6 +305,36 @@ class CrossRoad(Model):
 
         #self.traffic_time is set to 10, the number of steps one traffic light lasts
         #until reset the variable 
+        
+        #positions.clearPositions()
+        
+        f = openFile()
+
+        cars = []
+
+        for cell, x, y in self.grid.coord_iter():
+            if isinstance(cell, Car) or isinstance(cell, TrafficLight):
+                if isinstance(cell, Car):
+                    a = {"x": x,
+                        "y": y,
+                        "id": cell.unique_id,
+                        "kind": 0}
+                else:
+                    a = {"x": x,
+                        "y": y,
+                        "id": cell.unique_id,
+                        "kind": 1,
+                        "state": cell.colour}
+                cars.append(a)
+            
+        writeFile(f, str(cars))
+        
+        f.close()
+                
+        
+
+        
+
 
         if self.traffic_counter < self.traffic_time:
             self.traffic_counter += 1
